@@ -202,7 +202,33 @@ def lm_checkpoint(lm_config, weight='full_sft', model=None, optimizer=None, epoc
         return None
 
 
+def _resolve_repo_path(path):
+    if path is None:
+        return path
+    # 1) 绝对路径直接返回
+    if os.path.isabs(path) and os.path.exists(path):
+        return path
+    # 2) 当前工作目录能找到就用当前
+    if os.path.exists(path):
+        return path
+    # 3) 尝试 repo 根目录
+    repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+    candidate = os.path.join(repo_root, path)
+    if os.path.exists(candidate):
+        return candidate
+    # 4) 兜底：常见目录直接回退到 repo_root 下
+    base = os.path.basename(path.rstrip("/\\"))
+    if base in {"model", "out"}:
+        candidate = os.path.join(repo_root, base)
+        if os.path.exists(candidate):
+            return candidate
+    # 找不到就返回原始值，交给上层抛错
+    return path
+
+
 def init_model(lm_config, from_weight='pretrain', tokenizer_path='../model', save_dir='../out', device='cuda'):
+    tokenizer_path = _resolve_repo_path(tokenizer_path)
+    save_dir = _resolve_repo_path(save_dir)
     tokenizer = AutoTokenizer.from_pretrained(tokenizer_path)
     model = MiniMindForCausalLM(lm_config)
 
